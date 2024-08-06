@@ -37,6 +37,7 @@ type options struct {
 	Timestamp  string `long:"timestamp" description:"Timestamp for database snapshot in the RFC 3339 format."`
 	BulkSize   uint   `long:"bulk-size" description:"Bulk size for values in a single INSERT statement."`
 	QuerySql   string `long:"where" description:"Query sql for values in a SElect statement."`
+	Format     string `long:"format" description:"Format of the output, can be 'json' or 'sql'."`
 }
 
 func main() {
@@ -49,7 +50,9 @@ func main() {
 	if opts.ProjectId == "" || opts.InstanceId == "" || opts.DatabaseId == "" {
 		exitf("Missing parameters: -p, -i, -d are required\n")
 	}
-
+	if opts.Format != "json" && opts.Format != "sql" {
+		exitf("Invalid format: -format can be 'json' or 'sql'\n")
+	}
 	var timestamp *time.Time
 	if opts.Timestamp != "" {
 		t, err := time.Parse(time.RFC3339, opts.Timestamp)
@@ -65,7 +68,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	dumper, err := NewDumper(ctx, opts.ProjectId, opts.InstanceId, opts.DatabaseId, os.Stdout, timestamp, opts.BulkSize, tables, opts.QuerySql)
+	dumper, err := NewDumper(ctx, opts.ProjectId, opts.InstanceId, opts.DatabaseId, os.Stdout, timestamp, opts.BulkSize, tables, opts.QuerySql, opts.Format)
 	if err != nil {
 		exitf("Failed to create dumper: %v\n", err)
 	}

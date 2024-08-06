@@ -50,13 +50,14 @@ type Dumper struct {
 	timestamp *time.Time
 	bulkSize  uint
 	querySql  string
+	format    string
 
 	client      *spanner.Client
 	adminClient *adminapi.DatabaseAdminClient
 }
 
 // NewDumper creates Dumper with specified configurations.
-func NewDumper(ctx context.Context, project, instance, database string, out io.Writer, timestamp *time.Time, bulkSize uint, tables []string, querySql string) (*Dumper, error) {
+func NewDumper(ctx context.Context, project, instance, database string, out io.Writer, timestamp *time.Time, bulkSize uint, tables []string, querySql string, format string) (*Dumper, error) {
 	dbPath := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database)
 	client, err := spanner.NewClientWithConfig(ctx, dbPath, spanner.ClientConfig{
 		SessionPoolConfig: spanner.SessionPoolConfig{
@@ -96,6 +97,7 @@ func NewDumper(ctx context.Context, project, instance, database string, out io.W
 		bulkSize:    bulkSize,
 		client:      client,
 		querySql:    querySql,
+		format:      format,
 		adminClient: adminClient,
 	}
 
@@ -183,8 +185,14 @@ func (d *Dumper) dumpTable(ctx context.Context, table *Table, querySql string, t
 	iter := txn.QueryWithOptions(ctx, stmt, opts)
 	defer iter.Stop()
 
-	writer := NewBufferedWriter(table, d.out, d.bulkSize)
-	defer writer.Flush()
+	writer := NewBufferedWriter(table, d.out, d.bulkSize, d.format)
+	if d.format == "json" {
+		defer writer.FormatJson()
+	} else if d.format == "sql" {
+		defer writer.FormatSql()
+	} else {
+		exitf("Unsupported format: %s\n", d.format)
+	}
 	for {
 		row, err := iter.Next()
 		if err == iterator.Done {
