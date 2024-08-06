@@ -173,7 +173,12 @@ func (d *Dumper) DumpTables(ctx context.Context) error {
 }
 
 func (d *Dumper) dumpTable(ctx context.Context, table *Table, querySql string, txn *spanner.ReadOnlyTransaction) error {
-	stmt := spanner.NewStatement(fmt.Sprintf("SELECT %s FROM `%s` where %s", table.quotedColumnList(), table.Name, querySql))
+	var stmt spanner.Statement
+	if querySql == "" {
+		stmt = spanner.NewStatement(fmt.Sprintf("SELECT %s FROM `%s`", table.quotedColumnList(), table.Name))
+	} else {
+		stmt = spanner.NewStatement(fmt.Sprintf("SELECT %s FROM `%s` WHERE %s", table.quotedColumnList(), table.Name, querySql))
+	}
 	opts := spanner.QueryOptions{Priority: sppb.RequestOptions_PRIORITY_LOW}
 	iter := txn.QueryWithOptions(ctx, stmt, opts)
 	defer iter.Stop()
